@@ -1,0 +1,39 @@
+version: '3.7'
+
+services:
+  dnsmasq:
+    image: kunst1080/dnsmasq
+#    ports:
+#      - "53:53/tcp"
+#      - "53:53/udp"
+    cap_add:
+      - NET_ADMIN
+    command: >
+      --address=/localnet/10.0.7.1
+      --address=/test.localnet/10.0.7.2
+      --cname=cname.test,extra.host
+      --address=/other-container.test/10.0.9.10
+    links:
+      - dnsclient:hogehoge.test
+    extra_hosts:
+      - "extra.host:10.0.7.3"
+    networks:
+      default:
+        ipv4_address: 10.0.9.9
+
+  dnsclient:
+    image: dnsclient
+    dns:
+      - 10.0.9.9
+
+  other-container:
+    image: dnsclient
+    networks:
+      default:
+        ipv4_address: 10.0.9.10
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 10.0.9.0/24

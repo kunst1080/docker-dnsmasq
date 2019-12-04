@@ -1,15 +1,34 @@
-IMAGE_NAME = dnsmasq
-
 default: help
 
 help: ## Print help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-build: ## Build container
-	docker build --rm -t $(IMAGE_NAME) .
+build-all: ## Build all containers
+	@make build-dnsmasq build-dnsclient
 
-run: ## Run service for test
-	docker run --rm -d --cap-add=NET_ADMIN --add-host=my.internal:192.168.65.2 -p 53:53/tcp -p 53:53/udp $(IMAGE_NAME)
+build-dnsmasq: ## Build dnsmasq container
+	docker build --rm -f Dockerfile -t kunst1080/dnsmasq .
+
+build-dnsclient: ## Build dnsclient container
+	docker build --rm -f Dockerfile.dnsclient -t dnsclient .
+
+up: ## Run services for test
+	docker-compose up -d
+
+down: ## Delete services for test
+	docker-compose down
+
+test: ## Run test
+	rm -f test.actual
+	docker-compose exec dnsclient dig +short aaa.localnet | tr -d '\r' | tee -a test.actual
+	docker-compose exec dnsclient dig +short test.localnet | tr -d '\r' | tee -a test.actual
+	docker-compose exec dnsclient dig +short extra.host | tr -d '\r' | tee -a test.actual
+	docker-compose exec dnsclient dig +short cname.test | tr -d '\r' | tee -a test.actual
+	docker-compose exec dnsclient dig +short hogehoge.test | tr -d '\r' | tee -a test.actual
+	docker-compose exec dnsclient dig +short other-container | tr -d '\r' | tee -a test.actual
+	docker-compose exec dnsclient dig +short aaa.other-container.test | tr -d '\r' | tee -a test.actual
+	diff test.actual test.expected && rm -f test.actual
 
 clean: ## Clean image
-	docker rmi $(IMAGE_NAME)
+	docker rmi -f dnsmasq dnsclient
+
